@@ -7,8 +7,8 @@
  * Scoring Algorithm (Weighted):
  * - Weather Score (40%):  Optimal temp 15-25°C, wind < 8 m/s, no precipitation,
  *                          humidity 40-70%
- * - Air Quality Score (40%): AQI 0-50=100, 51-100=75, 101-150=50,
- *                             151-200=25, 200+=0
+ * - Air Quality Score (40%): OWM 1–5 scale → 1=100, 2=75, 3=50, 4=25, 5=0
+ *                             (OpenWeatherMap uses European 1–5 AQI, NOT US EPA 0–500)
  * - Condition Score (20%): Clear=100, Clouds=70, Rain=40, Drizzle=30,
  *                           Thunderstorm=10, Snow=20, Atmosphere=50, Mist=60
  *
@@ -87,16 +87,16 @@ function calculateWeatherScore(temp, humidity, windSpeed, condition) {
   return Math.max(0, Math.min(100, score));
 }
 
+// FIX-03: OWM Air Pollution API uses a 1–5 European scale (NOT US EPA 0–500).
+// 1 = Good, 2 = Fair, 3 = Moderate, 4 = Poor, 5 = Very Poor
+const OWM_AQI_SCORE_MAP = { 1: 100, 2: 75, 3: 50, 4: 25, 5: 0 };
+
 /**
  * Calculate the air quality sub-score (0-100).
- * Based on EPA AQI breakpoints.
+ * Based on OpenWeatherMap Air Pollution API 1–5 scale.
  */
 function calculateAirQualityScore(aqi) {
-  if (aqi <= 50) return 100;       // Good
-  if (aqi <= 100) return 75;       // Moderate
-  if (aqi <= 150) return 50;       // Unhealthy for Sensitive Groups
-  if (aqi <= 200) return 25;       // Unhealthy
-  return 0;                         // Very Unhealthy / Hazardous
+  return OWM_AQI_SCORE_MAP[aqi] ?? 50; // Default 50 for unknown values
 }
 
 /**
@@ -106,11 +106,12 @@ function calculateAirQualityScore(aqi) {
 function calculateConditionScore(condition) {
   const conditionLower = (condition || '').toLowerCase();
 
+  // FIX-06: Thunderstorm must be evaluated before rain/drizzle
+  if (conditionLower.includes('thunderstorm')) return 10;
   if (conditionLower === 'clear') return 100;
   if (conditionLower.includes('clouds') || conditionLower === 'clouds') return 70;
   if (conditionLower.includes('rain')) return 40;
   if (conditionLower.includes('drizzle')) return 30;
-  if (conditionLower.includes('thunderstorm')) return 10;
   if (conditionLower.includes('snow') || conditionLower.includes('sleet')) return 20;
   if (conditionLower.includes('atmosphere') || conditionLower === 'atmosphere') return 50;
   if (conditionLower.includes('mist') || conditionLower.includes('fog') || conditionLower.includes('haze')) return 60;

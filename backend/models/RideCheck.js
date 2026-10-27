@@ -23,7 +23,7 @@ const weatherSubSchema = new mongoose.Schema(
 const airQualitySubSchema = new mongoose.Schema(
   {
     aqi: { type: Number },
-    index: { type: Number },
+    // FIX-04: Removed duplicate `index` field — it stored identical value to `aqi`.
     pm25: { type: Number },
     pm10: { type: Number },
     o3: { type: Number },
@@ -40,17 +40,21 @@ const rideCheckSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'User ID is required'],
-    index: true,
+    // FIX-09: Removed redundant `index: true` here — the compound index
+    // { userId: 1, createdAt: -1 } at the bottom already covers userId lookups.
   },
   city: {
     type: String,
     required: [true, 'City is required'],
     trim: true,
   },
-  lat: { type: Number },
-  lon: { type: Number },
+  // FIX-09: Added coordinate bounds validation
+  lat: { type: Number, min: -90,  max: 90  },
+  lon: { type: Number, min: -180, max: 180 },
+  // FIX-09: safetyScore is now required (always set server-side via calculateSafetyScore)
   safetyScore: {
     type: Number,
+    required: true,
     min: 0,
     max: 100,
   },

@@ -7,6 +7,8 @@
 
 const mongoose = require('mongoose');
 
+// FIX-09: Use Mongoose timestamps option instead of manual createdAt field.
+// This also adds `updatedAt` automatically, and Mongoose manages both correctly.
 const userSchema = new mongoose.Schema({
   googleId: {
     type: String,
@@ -26,13 +28,6 @@ const userSchema = new mongoose.Schema({
     type: String,
     description: 'Profile picture URL from Google',
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
-
-// Index for fast lookups by Google ID
-userSchema.index({ googleId: 1 });
+}, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
