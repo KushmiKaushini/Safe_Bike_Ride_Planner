@@ -2,13 +2,17 @@
  * Authentication Middleware
  * K K K Ekanayake — Safe Bike Ride Planner Backend
  *
- * ensureAuth: blocks unauthenticated requests (redirects to /)
- * optionalAuth: attaches user to req if logged in, continues regardless
+ * ensureAuth: blocks unauthenticated requests with 401 (API routes) or redirect (page routes).
+ *
+ * FIX-11: Removed `optionalAuth` and `validateApiKey` — both were dead exports.
+ * Neither was mounted anywhere in server.js or any route file, creating a false
+ * sense of security. `validateApiKey` requires an API_KEY env var that was never
+ * documented and silently no-ops in development, making it ineffective.
  */
 
 /**
  * Middleware that requires authentication.
- * Redirects to the home page if the user is not authenticated.
+ * For API routes: returns 401 JSON. For page requests: redirects to /.
  */
 function ensureAuth(req, res, next) {
   if (req.isAuthenticated && req.isAuthenticated()) {
@@ -21,17 +25,4 @@ function ensureAuth(req, res, next) {
   return res.redirect('/');
 }
 
-/**
- * Middleware that optionally attaches the authenticated user to the request.
- * Continues to the next handler regardless of authentication state.
- */
-function optionalAuth(req, res, next) {
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    // req.user is already populated by Passport; nothing else to do
-    return next();
-  }
-  // No user attached — route handlers can check req.user === undefined
-  return next();
-}
-
-module.exports = { ensureAuth, optionalAuth };
+module.exports = { ensureAuth };

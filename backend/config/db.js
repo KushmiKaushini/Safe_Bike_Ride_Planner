@@ -16,14 +16,28 @@ async function connectDB() {
 
   if (!uri) {
     console.error('[DB] MONGODB_URI is not defined in environment variables');
-    process.exit(1);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (uri.includes('<username>') || uri.includes('xxxxx')) {
+    console.warn('[DB] Notice: Placeholder MONGODB_URI detected from .env.example.');
+    console.warn('[DB] Set your actual MongoDB Atlas connection string in backend/.env to enable database persistence.');
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+    return;
   }
 
   try {
     await mongoose.connect(uri);
   } catch (err) {
     console.error(`[DB] Initial connection failed: ${err.message}`);
-    process.exit(1);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 }
 

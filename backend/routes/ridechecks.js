@@ -7,36 +7,45 @@
 
 const express = require('express');
 const RideCheck = require('../models/RideCheck');
+const User = require('../models/User');
 const { ensureAuth } = require('../middleware/auth');
+const { calculateSafetyScore } = require('../services/safetyScore');
 const router = express.Router();
 
 /**
  * POST /api/ridechecks
- * Save a new ride check for the authenticated user
- * Body: { city, lat, lon, safetyScore, weather, airQuality, recommendation, summary }
+ * Save a new ride check for the authenticated user.
+ * FIX-08: Safety score is ALWAYS recalculated server-side from weather + AQI inputs.
+ * The client-supplied `safetyScore` is intentionally ignored — clients cannot forge scores.
+ * Body: { city, lat, lon, weather, airQuality }
  */
 router.post('/', ensureAuth, async (req, res) => {
   try {
-    const { city, lat, lon, safetyScore, weather, airQuality, recommendation, summary } = req.body;
+    const { city, lat, lon, weather, airQuality } = req.body;
 
     if (!city || !city.trim()) {
       return res.status(400).json({ success: false, error: 'City is required' });
     }
 
-    if (safetyScore !== undefined && (typeof safetyScore !== 'number' || safetyScore < 0 || safetyScore > 100)) {
-      return res.status(400).json({ success: false, error: 'Safety score must be a number between 0 and 100' });
-    }
+    // FIX-08: Recalculate score server-side; ignore client-supplied safetyScore entirely
+    const scored = calculateSafetyScore({
+      temp:      weather?.temp,
+      humidity:  weather?.humidity,
+      windSpeed: weather?.windSpeed,
+      condition: weather?.condition,
+      aqi:       airQuality?.aqi,
+    });
 
     const rideCheck = await RideCheck.create({
-      userId: req.user._id,
-      city: city.trim(),
+      userId:         req.user._id,
+      city:           city.trim(),
       lat,
       lon,
-      safetyScore,
-      weather: weather || {},
-      airQuality: airQuality || {},
-      recommendation,
-      summary,
+      safetyScore:    scored.safetyScore,
+      weather:        weather || {},
+      airQuality:     airQuality || {},
+      recommendation: scored.recommendation,
+      summary:        scored.summary,
     });
 
     return res.status(201).json({ success: true, data: rideCheck });
@@ -48,19 +57,49 @@ router.post('/', ensureAuth, async (req, res) => {
 
 /**
  * GET /api/ridechecks
- * Get all ride checks for the current user (newest first, limit 50)
+ * Get ride checks for the current user (newest first).
+ * FIX-24: Supports pagination via ?limit= and ?skip= query params.
+ * Defaults to limit=20, max limit=100.
  */
 router.get('/', ensureAuth, async (req, res) => {
   try {
-    const rideChecks = await RideCheck.find({ userId: req.user._id })
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .lean();
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const skip  = parseInt(req.query.skip) || 0;
 
-    return res.json({ success: true, data: rideChecks });
+    const [total, rideChecks] = await Promise.all([
+      RideCheck.countDocuments({ userId: req.user._id }),
+      RideCheck.find({ userId: req.user._id })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    return res.json({ success: true, data: rideChecks, total, limit, skip });
   } catch (err) {
     console.error('[RideChecks] Fetch error:', err.message);
     return res.status(500).json({ success: false, error: 'Failed to fetch ride checks' });
+  }
+});
+
+/**
+ * DELETE /api/ridechecks/account
+ * FIX-24: GDPR right to erasure — delete the authenticated user and ALL their data.
+ * IMPORTANT: Must be placed BEFORE the DELETE /:id route so Express does not
+ * match the string "account" as a MongoDB ObjectId and throw a CastError.
+ */
+router.delete('/account', ensureAuth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    await RideCheck.deleteMany({ userId });
+    await User.findByIdAndDelete(userId);
+    req.logout(() => req.session.destroy(() => {
+      res.clearCookie('connect.sid');
+      return res.json({ success: true, data: { message: 'Account and all data deleted' } });
+    }));
+  } catch (err) {
+    console.error('[RideChecks] Account delete error:', err.message);
+    return res.status(500).json({ success: false, error: 'Failed to delete account' });
   }
 });
 
