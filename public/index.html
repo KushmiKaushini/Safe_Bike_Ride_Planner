@@ -17,6 +17,14 @@
 
   <title>Safe Bike Ride Planner</title>
 
+  <!-- FIX-18: PWA manifest + Apple PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BikeCheck" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -26,6 +34,9 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+
+  <!-- FIX-20: Accessibility — skip-to-content link for keyboard/screen-reader users -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
 
   <!-- =====================================================================
        SPLASH SCREEN
@@ -96,7 +107,8 @@
     </header>
 
     <!-- ================================ MAIN CONTENT ================================ -->
-    <main>
+    <!-- FIX-20: id="main-content" for skip link target -->
+    <main id="main-content">
       <!-- ---- HERO SECTION ---- -->
       <section class="section hero">
         <div class="hero-bg-icon">
@@ -168,7 +180,8 @@
       </section>
 
       <!-- ---- SAFETY REPORT SECTION ---- -->
-      <section class="section report-section" id="report-section">
+      <!-- FIX-20: aria-live="polite" so screen readers announce new report results -->
+      <section class="section report-section" id="report-section" aria-live="polite" aria-atomic="false">
         <div class="report-card">
 
           <!-- Report Header: City + Temp -->
@@ -390,7 +403,8 @@
   <!-- =====================================================================
        HISTORY MODAL
   ====================================================================== -->
-  <div class="modal-overlay" id="history-modal">
+  <!-- FIX-20: role + aria-modal + aria-label for screen reader modal support -->
+  <div class="modal-overlay" id="history-modal" role="dialog" aria-modal="true" aria-label="Ride History">
     <div class="modal">
       <div class="modal-header">
         <h3>Ride History <span id="history-count" style="color:var(--text-muted);font-weight:400;font-size:0.9rem">(0)</span></h3>
@@ -409,8 +423,9 @@
   <!-- =====================================================================
        SCRIPTS
   ====================================================================== -->
-  <script src="js/auth.js"></script>
-  <script src="js/app.js"></script>
+  <!-- FIX-21: defer — scripts load after HTML parsed, no render blocking -->
+  <script src="js/auth.js" defer></script>
+  <script src="js/app.js" defer></script>
 
   <!-- Footer year -->
   <script>

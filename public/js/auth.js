@@ -28,10 +28,11 @@ async function checkAuth() {
 
     const data = await res.json();
 
-    if (data && data.user) {
-      window.appState.user = data.user;
-      renderAuthState(data.user);
-      return data.user;
+    // FIX-01: Server returns { success: true, data: {...user} }, not { user: {...} }
+    if (data && data.data) {
+      window.appState.user = data.data;
+      renderAuthState(data.data);
+      return data.data;
     }
 
     window.appState.user = null;

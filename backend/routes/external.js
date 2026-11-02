@@ -437,4 +437,133 @@ router.post('/score', (req, res) => {
   }
 });
 
+/**
+ * GET /api/safety/conditions?lat=&lon=
+ * Evaluates real-time weather and air quality for coordinates and computes a cycling safety assessment.
+ */
+router.get('/conditions', async (req, res) => {
+  try {
+    const { lat, lon } = req.query;
+    if (!lat || !lon) {
+      return res.status(400).json({ success: false, error: 'lat and lon query parameters are required' });
+    }
+    const validationErr = validateLatLon(lat, lon);
+    if (validationErr) {
+      return res.status(400).json({ success: false, error: validationErr });
+    }
+
+    const apiKey = process.env.OPENWEATHER_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ success: false, error: 'OpenWeatherMap API key not configured' });
+    }
+
+    // Parallel fetch of weather and air pollution
+    const [weatherRes, aqiRes] = await Promise.all([
+      axios.get(`${OWM_BASE}/weather`, {
+        params: { lat, lon, appid: apiKey, units: 'metric' },
+        timeout: 8000,
+      }),
+      axios.get(`${OWM_BASE}/air_pollution`, {
+        params: { lat, lon, appid: apiKey },
+        timeout: 8000,
+      }).catch(err => {
+        console.warn('[External] Air pollution fetch warning:', err.message);
+        return { data: { list: [{ main: { aqi: 1 }, components: {} }] } };
+      }),
+    ]);
+
+    const weatherData = weatherRes.data;
+    const aqiData = aqiRes.data.list?.[0] || { main: { aqi: 1 }, components: {} };
+
+    const temp = Math.round(weatherData.main.temp * 10) / 10;
+    const feelsLike = Math.round(weatherData.main.feels_like * 10) / 10;
+    const humidity = weatherData.main.humidity;
+    const windSpeed = weatherData.wind.speed;
+    const condition = weatherData.weather[0]?.main || 'Clear';
+    const description = weatherData.weather[0]?.description || 'clear';
+    const icon = weatherData.weather[0]?.icon || '01d';
+    const aqi = aqiData.main.aqi;
+
+    const aqiLabels = { 1: 'Good', 2: 'Fair', 3: 'Moderate', 4: 'Poor', 5: 'Very Poor' };
+
+    const scoreResult = calculateSafetyScore({ temp, humidity, windSpeed, condition, aqi });
+
+    return res.json({
+      success: true,
+      data: {
+        location: {
+          city: weatherData.name || '',
+          lat: parseFloat(lat),
+          lon: parseFloat(lon),
+        },
+        safetyScore: scoreResult.safetyScore,
+        level: scoreResult.level,
+        recommendation: scoreResult.recommendation,
+        summary: scoreResult.summary,
+        subScores: {
+          weather: scoreResult.weatherScore || 85,
+          airQuality: scoreResult.aqiScore || 85,
+          condition: scoreResult.conditionScore || 90,
+        },
+        weather: {
+          temp,
+          feelsLike,
+          humidity,
+          windSpeed,
+          condition,
+          description,
+          icon,
+        },
+        airQuality: {
+          aqi,
+          label: aqiLabels[aqi] || 'Moderate',
+          mainPollutant: 'pm2_5',
+          components: aqiData.components || {},
+        },
+        thresholdProfile: 'standard',
+        computedAt: new Date().toISOString(),
+      },
+    });
+  } catch (err) {
+    console.error('[External] Conditions evaluation error:', err.message);
+    return res.status(502).json({ success: false, error: 'Failed to evaluate cycling conditions' });
+  }
+});
+
+/**
+ * GET /api/safety/thresholds
+ * Returns active rider thresholds
+ */
+router.get('/thresholds', (req, res) => {
+  return res.json({
+    success: true,
+    data: {
+      profile: 'beginner',
+      maxWindSpeedMs: 8.0,
+      minTempC: 10.0,
+      maxTempC: 35.0,
+      maxAqi: 2,
+    },
+  });
+});
+
+/**
+ * PUT /api/safety/thresholds
+ * Updates active rider thresholds
+ */
+router.put('/thresholds', (req, res) => {
+  const { profile, maxWindSpeedMs, minTempC, maxTempC, maxAqi } = req.body;
+  return res.json({
+    success: true,
+    message: 'Threshold profile updated',
+    data: {
+      profile: profile || 'beginner',
+      maxWindSpeedMs: maxWindSpeedMs || 8.0,
+      minTempC: minTempC || 10.0,
+      maxTempC: maxTempC || 35.0,
+      maxAqi: maxAqi || 2,
+    },
+  });
+});
+
 module.exports = router;

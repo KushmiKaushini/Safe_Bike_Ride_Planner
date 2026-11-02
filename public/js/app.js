@@ -21,28 +21,32 @@ window.appState = {
 
 /**
  * initApp — Entry point fired on DOMContentLoaded.
- * - Hides splash screen after 3 seconds
- * - Checks authentication state
- * - Handles OAuth redirect callback
- * - Renders initial view
+ * FIX-19: Smart auth-aware reveal. Waits for auth check AND minimum 1.5s
+ * rather than hardcoded 3.2s delay, preventing blocked interaction.
  */
 function initApp() {
   // Handle OAuth redirect first (clean URL before anything else)
   handleOAuthRedirect();
 
-  // Splash screen auto-hide after animation completes
-  setTimeout(function () {
-    var splash = document.getElementById('splash-screen');
-    var app = document.getElementById('app');
-    if (splash) splash.classList.add('hidden');
-    if (app) app.classList.add('visible');
-  }, 3200);
+  const MIN_MS = 1500;
+  const t0 = Date.now();
 
-  // Check authentication state
-  checkAuth().then(function (user) {
+  const authDone = checkAuth().then(function (user) {
     if (user) {
       loadHistory();
     }
+    return user;
+  });
+
+  Promise.all([authDone, new Promise(function (r) { setTimeout(r, MIN_MS); })]).then(function () {
+    const elapsed = Date.now() - t0;
+    const remaining = Math.max(0, MIN_MS - elapsed);
+    setTimeout(function () {
+      var splash = document.getElementById('splash-screen');
+      var app = document.getElementById('app');
+      if (splash) splash.classList.add('hidden');
+      if (app) app.classList.add('visible');
+    }, remaining);
   });
 
   // Set up enter key for search input
@@ -105,8 +109,8 @@ async function fallbackGeolocation() {
 
     var data = await res.json();
 
-    if (data && data.lat != null && data.lon != null) {
-      checkByCoords(data.lat, data.lon);
+    if (data && (data.lat != null || (data.data && data.data.lat != null))) {
+      checkByCoords(data.lat || (data.data && data.data.lat), data.lon || (data.data && data.data.lon));
     } else {
       throw new Error('Could not determine your location');
     }
@@ -146,9 +150,9 @@ async function checkCity(cityName) {
     }
 
     var geoData = await geoRes.json();
-    var lat = geoData.lat;
-    var lon = geoData.lon;
-    var displayName = geoData.displayName || cityName.trim();
+    var lat = geoData.data ? geoData.data.lat : geoData.lat;
+    var lon = geoData.data ? geoData.data.lon : geoData.lon;
+    var displayName = (geoData.data && geoData.data.name) || (geoData.data && geoData.data.displayName) || cityName.trim();
 
     await fetchReportData(lat, lon, displayName);
   } catch (err) {
@@ -178,8 +182,8 @@ async function checkByCoords(lat, lon) {
       );
       if (revGeoRes.ok) {
         var revGeoData = await revGeoRes.json();
-        if (revGeoData && revGeoData.city) {
-          displayName = revGeoData.city;
+        if (revGeoData && (revGeoData.city || (revGeoData.data && revGeoData.data.city))) {
+          displayName = revGeoData.city || revGeoData.data.city;
         }
       }
     } catch (e) {
@@ -196,6 +200,8 @@ async function checkByCoords(lat, lon) {
 
 /**
  * fetchReportData — Fetch weather and AQI data, calculate score, render.
+ * FIX-07: Score is now calculated server-side via POST /api/external/score.
+ * This ensures the displayed score is always identical to the saved score.
  * @param {number} lat
  * @param {number} lon
  * @param {string} displayName
@@ -227,8 +233,32 @@ async function fetchReportData(lat, lon, displayName) {
       console.warn('[AQI] Air quality fetch failed, degrading gracefully:', e.message);
     }
 
-    // Build combined data
-    var report = buildSafetyReport(weatherData, aqiData, displayName, lat, lon);
+    // FIX-07: Delegate scoring to the backend so the displayed score matches what gets saved.
+    // Previously the browser computed its own score that could differ by up to 30 pts from the DB value.
+    var serverScore = null;
+    try {
+      var scoreRes = await fetch('/api/external/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          temp:      weatherData.data ? weatherData.data.temp      : null,
+          humidity:  weatherData.data ? weatherData.data.humidity  : null,
+          windSpeed: weatherData.data ? weatherData.data.windSpeed : null,
+          condition: weatherData.data ? weatherData.data.condition : null,
+          aqi:       aqiData && aqiData.data ? aqiData.data.aqi    : null,
+        }),
+      });
+      if (scoreRes.ok) {
+        var scoreData = await scoreRes.json();
+        if (scoreData.success) serverScore = scoreData.data;
+      }
+    } catch (e) {
+      console.warn('[Score] Server score fetch failed, falling back to local calculation:', e.message);
+    }
+
+    // Build combined data (passes serverScore so buildSafetyReport uses it when available)
+    var report = buildSafetyReport(weatherData, aqiData, displayName, lat, lon, serverScore);
 
     // Store in state
     window.appState.currentReport = report;
@@ -247,6 +277,9 @@ async function fetchReportData(lat, lon, displayName) {
 
 /**
  * buildSafetyReport — Calculate safety score from weather + AQI data.
+ * FIX-07: If `serverScore` is provided (from POST /api/external/score), it takes
+ * precedence over the local calculation so displayed score always matches DB.
+ * The local calculation remains as a graceful fallback if the score endpoint is unavailable.
  * Weighting: Weather 40%, Air Quality 40%, Road Conditions 20%.
  *
  * Weather scoring:
@@ -264,7 +297,7 @@ async function fetchReportData(lat, lon, displayName) {
  * @param {number} lon - Longitude
  * @returns {Object} Complete report object
  */
-function buildSafetyReport(weather, aqi, displayName, lat, lon) {
+function buildSafetyReport(weather, aqi, displayName, lat, lon, serverScore) {
   // --- Weather scoring ---
   var weatherScore = 75; // default moderate
 
@@ -281,17 +314,21 @@ function buildSafetyReport(weather, aqi, displayName, lat, lon) {
     if (temp < 0) tempScore = 10;
     if (temp > 40) tempScore = 10;
 
-    // Wind score: <15 km/h ideal
+    // FIX-05: Wind speed from OWM is in m/s. Safe cycling threshold is ≤ 8 m/s (~29 km/h).
+    // Old thresholds (> 15, > 50) were treating 54 km/h winds as perfectly safe.
     var windScore = 100;
-    if (wind > 15) windScore = Math.max(0, 100 - (wind - 15) * 4);
-    if (wind > 50) windScore = 0;
+    if (wind > 8)  windScore = Math.max(0, 100 - (wind - 8) * 10);
+    if (wind > 18) windScore = 0;
 
     // Condition score based on weather description
+    // FIX-06: Thunderstorm must be checked BEFORE rain — "thunderstorm" contains "rain"
+    // so it would previously match the rain branch and score 40 (Caution) instead of 10 (Unsafe).
     var conditionScore = 100;
-    if (
+    if (condition.includes('thunderstorm')) {
+      conditionScore = 10;
+    } else if (
       condition.includes('rain') ||
-      condition.includes('drizzle') ||
-      condition.includes('thunderstorm')
+      condition.includes('drizzle')
     ) {
       conditionScore = 40;
     }
@@ -330,12 +367,11 @@ function buildSafetyReport(weather, aqi, displayName, lat, lon) {
     aqiValue = aqi.aqi != null ? aqi.aqi : aqi.index;
     mainPollutant = aqi.mainPollutant || null;
 
+    // FIX-03: OWM Air Pollution API returns 1–5 European scale, NOT US EPA 0–500.
+    // 1 = Good, 2 = Fair, 3 = Moderate, 4 = Poor, 5 = Very Poor
+    var aqiScoreMap = { 1: 100, 2: 75, 3: 50, 4: 25, 5: 0 };
     if (aqiValue != null) {
-      if (aqiValue <= 50) aqiScore = 100;
-      else if (aqiValue <= 100) aqiScore = 75;
-      else if (aqiValue <= 150) aqiScore = 50;
-      else if (aqiValue <= 200) aqiScore = 25;
-      else aqiScore = 10;
+      aqiScore = (aqiScoreMap[aqiValue] !== undefined) ? aqiScoreMap[aqiValue] : 50;
     }
   }
 
@@ -344,6 +380,13 @@ function buildSafetyReport(weather, aqi, displayName, lat, lon) {
   var conditionScore = Math.round(weatherScore * 0.5 + aqiScore * 0.5);
   var totalScore = Math.round(weatherScore * 0.4 + aqiScore * 0.4 + conditionScore * 0.2);
   totalScore = Math.max(0, Math.min(100, totalScore));
+
+  // FIX-07: If the server returned an authoritative score, use it instead of local calculation.
+  // This guarantees that displayed score == saved score in the DB.
+  if (serverScore && typeof serverScore.safetyScore === 'number') {
+    totalScore    = serverScore.safetyScore;
+    conditionScore = totalScore; // keep conditionScore in ballpark for UI progress bars
+  }
 
   // --- Recommendation ---
   var level, recommendation, tips;
@@ -758,7 +801,10 @@ async function saveReport() {
         },
         airQuality: {
           aqi: report.airQuality.aqi,
-          index: report.airQuality.aqi,
+          // FIX-04: Removed duplicate `index` field (was storing same value as `aqi`).
+          // Added pm25 / pm10 for richer data if available on the report object.
+          pm25: report.airQuality.pm25,
+          pm10: report.airQuality.pm10,
           mainPollutant: report.airQuality.mainPollutant,
         },
         recommendation: report.level,
@@ -810,7 +856,10 @@ async function loadHistory() {
     }
 
     var data = await res.json();
-    var checks = data.checks || data || [];
+    // FIX-02: Guard against server error objects being silently treated as empty history.
+    // Previously `data.data || data || []` would treat an error object as truthy.
+    if (!data.success) throw new Error(data.error || 'Failed to fetch history');
+    var checks = data.data || [];
 
     window.appState.history = checks;
     renderHistory(checks);
@@ -1033,6 +1082,15 @@ function calculateSubScore(data, type) {
   if (!data) return 75;
 
   if (type === 'weather') {
+    // Use wind speed if available (m/s)
+    if (data.windSpeed != null) {
+      if (data.windSpeed <= 8) return 100;
+      if (data.windSpeed <= 12) return 85;
+      if (data.windSpeed <= 15) return 70;
+      if (data.windSpeed <= 20) return 50;
+      return 30;
+    }
+    // Use temperature if wind not available
     var temp = data.temp;
     if (temp != null) {
       if (temp >= 15 && temp <= 25) return 90;
@@ -1045,7 +1103,7 @@ function calculateSubScore(data, type) {
   if (type === 'aqi') {
     var aqi = data.aqi != null ? data.aqi : data.index;
     if (aqi == null) return 75;
-    if (aqi <= 50) return 95;
+    if (aqi <= 50) return 100;
     if (aqi <= 100) return 75;
     if (aqi <= 150) return 50;
     return 25;
@@ -1123,6 +1181,35 @@ function renderStats(checks) {
 
 /* ================================ Modal Functions ================================ */
 
+var lastFocusedElement = null;
+
+/**
+ * FIX-20: trapFocus — Traps keyboard Tab navigation inside active modal.
+ */
+function trapFocus(el) {
+  var focusable = el.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  );
+  if (!focusable || focusable.length === 0) return;
+  var first = focusable[0];
+  var last = focusable[focusable.length - 1];
+
+  el.onkeydown = function (e) {
+    if (e.key !== 'Tab') return;
+    if (e.shiftKey) {
+      if (document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  };
+}
+
 /**
  * openHistoryModal — Show the history modal and load data.
  */
@@ -1130,7 +1217,13 @@ function openHistoryModal() {
   var modal = document.getElementById('history-modal');
   if (!modal) return;
 
+  lastFocusedElement = document.activeElement;
   modal.classList.add('active');
+  trapFocus(modal);
+
+  // Focus close button or first focusable element
+  var closeBtn = modal.querySelector('.modal-close');
+  if (closeBtn) closeBtn.focus();
 
   // Reload history data
   if (window.appState.user) {
@@ -1143,7 +1236,13 @@ function openHistoryModal() {
  */
 function closeHistoryModal() {
   var modal = document.getElementById('history-modal');
-  if (modal) modal.classList.remove('active');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.onkeydown = null;
+  }
+  if (lastFocusedElement && typeof lastFocusedElement.focus === 'function') {
+    lastFocusedElement.focus();
+  }
 }
 
 /* ================================ UI Helpers ================================ */
@@ -1227,6 +1326,20 @@ document.addEventListener('keydown', function (e) {
 
 // Initialize on DOM ready
 document.addEventListener('DOMContentLoaded', initApp);
+
+// FIX-18: Register Service Worker for PWA capability
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then(function (reg) {
+        console.log('[SW] ServiceWorker registered with scope:', reg.scope);
+      })
+      .catch(function (err) {
+        console.warn('[SW] ServiceWorker registration failed:', err);
+      });
+  });
+}
 
 // Expose functions globally for inline onclick handlers
 window.detectLocation = detectLocation;

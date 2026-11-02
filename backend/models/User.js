@@ -28,6 +28,18 @@ const userSchema = new mongoose.Schema({
     type: String,
     description: 'Profile picture URL from Google',
   },
+  lastLoginPlatform: {
+    type: String,
+    enum: ['android', 'ios'],
+    default: 'android',
+  },
+  thresholdProfile: {
+    profileName: { type: String, enum: ['beginner', 'experienced'], default: 'beginner' },
+    maxWindSpeedMs: { type: Number, default: 8.0 },
+    minTempC: { type: Number, default: 10.0 },
+    maxTempC: { type: Number, default: 35.0 },
+    maxAqi: { type: Number, default: 2 },
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

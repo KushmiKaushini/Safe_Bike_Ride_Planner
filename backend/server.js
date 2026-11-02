@@ -43,9 +43,10 @@ const connectDB = require('./config/db');
 const User      = require('./models/User');
 
 // Route imports
-const authRoutes      = require('./routes/auth');
-const externalRoutes  = require('./routes/external');
-const rideCheckRoutes = require('./routes/ridechecks');
+const authRoutes       = require('./routes/auth');
+const mobileAuthRoutes = require('./routes/mobileAuth');
+const externalRoutes   = require('./routes/external');
+const rideCheckRoutes  = require('./routes/ridechecks');
 
 const app = express();
 
@@ -251,6 +252,10 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 // Using 'lax' sameSite on the cookie still allows the OAuth flow to work.
 // ---------------------------------------------------------------------------
 function verifySameOrigin(req, res, next) {
+  // Mobile requests with Authorization: Bearer bypass cookie-based CSRF checks
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    return next();
+  }
   const origin  = req.headers.origin || req.headers.referer || '';
   const allowed = process.env.CLIENT_URL || 'http://localhost:3000';
   if (origin && !origin.startsWith(allowed)) {
@@ -262,11 +267,14 @@ function verifySameOrigin(req, res, next) {
 // ---------------------------------------------------------------------------
 // Route Mounting
 // ---------------------------------------------------------------------------
+app.use('/api/auth', mobileAuthRoutes);
 app.use('/auth', authRoutes);
 app.use('/', authRoutes);
 app.use('/api/external', externalRoutes);
+app.use('/api/safety', externalRoutes); // Alias for microservice routing compatibility
 // FIX-14: Apply CSRF guard to write routes (ridechecks creates/deletes user data)
 app.use('/api/ridechecks', verifySameOrigin, rideCheckRoutes);
+app.use('/api/rides', verifySameOrigin, rideCheckRoutes); // Alias for microservice routing compatibility
 
 // ---------------------------------------------------------------------------
 // Health Check
