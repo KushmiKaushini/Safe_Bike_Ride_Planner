@@ -161,13 +161,13 @@ app.use(helmet({
 // FIX-16: Strict CORS — production only allows CLIENT_URL; dev allows localhost variants.
 const allowedOrigins = process.env.NODE_ENV === 'production'
   ? [process.env.CLIENT_URL].filter(Boolean)
-  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+  : ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080', 'http://127.0.0.1:8080', 'http://10.0.2.2:8080'];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow same-origin requests (no Origin header) and listed origins
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow mobile client, direct client, same-origin, or local dev origins
+      if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:') || origin.startsWith('http://10.0.2.2:')) {
         callback(null, true);
       } else {
         callback(new Error('CORS: origin not allowed'));

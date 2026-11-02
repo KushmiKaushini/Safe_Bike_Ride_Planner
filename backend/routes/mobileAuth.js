@@ -75,31 +75,41 @@ router.post('/mobile/token', async (req, res) => {
     }
 
     let payload;
-    try {
-      // In production, verify with Google.
-      // In development/test environments, allow decoding if GOOGLE_CLIENT_ID isn't yet live.
-      const ticket = await googleClient.verifyIdToken({
-        idToken,
-        audience: process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.split(',') : undefined,
-      });
-      payload = ticket.getPayload();
-    } catch (verifyErr) {
-      // Fallback for development/mock tokens
-      if (process.env.NODE_ENV !== 'production') {
-        const decoded = jwt.decode(idToken);
-        if (decoded && decoded.sub) {
-          payload = decoded;
+    // Development/mock token support
+    if (process.env.NODE_ENV !== 'production' && typeof idToken === 'string' && idToken.startsWith('mock_')) {
+      payload = {
+        sub: 'mock_google_user_' + idToken.replace(/[^a-zA-Z0-9]/g, '').slice(-8),
+        email: 'cyclist@example.com',
+        displayName: 'Demo Cyclist',
+        picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+      };
+    } else {
+      try {
+        // In production, verify with Google.
+        // In development/test environments, allow decoding if GOOGLE_CLIENT_ID isn't yet live.
+        const ticket = await googleClient.verifyIdToken({
+          idToken,
+          audience: process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.split(',') : undefined,
+        });
+        payload = ticket.getPayload();
+      } catch (verifyErr) {
+        // Fallback for development/mock tokens
+        if (process.env.NODE_ENV !== 'production') {
+          const decoded = jwt.decode(idToken);
+          if (decoded && decoded.sub) {
+            payload = decoded;
+          } else {
+            return res.status(401).json({
+              success: false,
+              error: 'Invalid Google id_token: ' + verifyErr.message,
+            });
+          }
         } else {
           return res.status(401).json({
             success: false,
-            error: 'Invalid Google id_token: ' + verifyErr.message,
+            error: 'Google id_token verification failed',
           });
         }
-      } else {
-        return res.status(401).json({
-          success: false,
-          error: 'Google id_token verification failed',
-        });
       }
     }
 
