@@ -57,6 +57,124 @@ async function createRefreshTokenRecord(userId, platform, existingFamilyId = nul
 }
 
 /**
+ * POST /api/auth/register
+ * Manual User Registration (Email/Password)
+ */
+router.post('/register', async (req, res) => {
+  try {
+    const { email, password, displayName, platform } = req.body;
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, error: 'Email is required' });
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({ success: false, error: 'Please enter a valid email address' });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters long' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const existing = await User.findOne({ email: cleanEmail });
+    if (existing) {
+      return res.status(400).json({ success: false, error: 'An account with this email already exists' });
+    }
+
+    const name = displayName && displayName.trim() ? displayName.trim() : cleanEmail.split('@')[0];
+
+    const user = await User.create({
+      email: cleanEmail,
+      password,
+      displayName: name,
+      authProvider: 'local',
+      lastLoginPlatform: platform === 'ios' ? 'ios' : 'android',
+    });
+
+    const accessToken = generateAccessToken(user);
+    const { rawToken: refreshToken } = await createRefreshTokenRecord(user._id, platform);
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        accessToken,
+        refreshToken,
+        tokenType: 'Bearer',
+        expiresIn: JWT_ACCESS_TTL,
+        user: {
+          id: user._id.toString(),
+          displayName: user.displayName,
+          email: user.email,
+          photo: user.photo || '',
+          thresholdProfile: user.thresholdProfile,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('[Auth] Registration error:', err);
+    return res.status(500).json({ success: false, error: 'Registration failed: ' + err.message });
+  }
+});
+
+/**
+ * POST /api/auth/login
+ * Manual User Login (Email/Password)
+ */
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password, platform } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ success: false, error: 'Email and password are required' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: cleanEmail }).select('+password');
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Invalid email or password' });
+    }
+
+    if (user.authProvider === 'google' && !user.password) {
+      return res.status(400).json({
+        success: false,
+        error: 'This account was created with Google Sign-In. Please sign in using Google.',
+      });
+    }
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, error: 'Invalid email or password' });
+    }
+
+    user.lastLoginPlatform = platform === 'ios' ? 'ios' : 'android';
+    await user.save();
+
+    const accessToken = generateAccessToken(user);
+    const { rawToken: refreshToken } = await createRefreshTokenRecord(user._id, platform);
+
+    return res.json({
+      success: true,
+      data: {
+        accessToken,
+        refreshToken,
+        tokenType: 'Bearer',
+        expiresIn: JWT_ACCESS_TTL,
+        user: {
+          id: user._id.toString(),
+          displayName: user.displayName,
+          email: user.email,
+          photo: user.photo || '',
+          thresholdProfile: user.thresholdProfile,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('[Auth] Login error:', err);
+    return res.status(500).json({ success: false, error: 'Login failed: ' + err.message });
+  }
+});
+
+/**
  * POST /api/auth/mobile/token
  * Mobile OAuth 2.0 PKCE Token Exchange Endpoint
  *
@@ -119,7 +237,7 @@ router.post('/mobile/token', async (req, res) => {
     const photo = payload.picture || payload.photo || '';
 
     // Find existing user or create a new one
-    let user = await User.findOne({ googleId });
+    let user = await User.findOne(email ? { $or: [{ googleId }, { email }] } : { googleId });
     if (!user) {
       user = await User.create({
         googleId,

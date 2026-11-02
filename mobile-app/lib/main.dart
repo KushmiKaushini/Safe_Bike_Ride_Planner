@@ -5,6 +5,7 @@ import 'core/auth/token_storage.dart';
 import 'core/theme/app_theme.dart';
 import 'features/account/screens/profile_screen.dart';
 import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/register_screen.dart';
 import 'features/history/screens/history_screen.dart';
 import 'features/history/screens/ride_detail_screen.dart';
 import 'features/history/screens/stats_screen.dart';
@@ -28,6 +29,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
