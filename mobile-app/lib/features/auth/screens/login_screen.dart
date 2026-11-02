@@ -24,7 +24,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final FlutterAppAuth _appAuth = const FlutterAppAuth();
   bool _isLoading = false;
   bool _obscurePassword = true;
-  
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -49,9 +49,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleManualLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-          });
+    setState(() => _isLoading = true);
 
     try {
       final dio = ref.read(apiClientProvider);
@@ -73,17 +71,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final errorMsg = e.toString().replaceAll('Exception: ', '');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMsg),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(child: Text(errorMsg)),
+              ],
+            ),
             backgroundColor: AppTheme.unsafe,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-                  });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -92,8 +94,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Custom Tabs OAuth is only supported on Android/iOS. Please use Quick Demo Sign In on desktop.'),
+          SnackBar(
+            content: const Text('Custom Tabs OAuth is only supported on Android/iOS. Please use Quick Demo Sign In on desktop.'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -105,23 +109,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: AppTheme.surface,
-          title: const Text('Google OAuth Configuration'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFF1E293B)),
+          ),
+          title: Row(
+            children: const [
+              Icon(Icons.shield_outlined, color: AppTheme.primary, size: 24),
+              SizedBox(width: 10),
+              Text('Google OAuth Setup', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
           content: const Text(
             'The app is currently using the default Google Client ID placeholder. '
             'Google OAuth requires registering your SHA-1 fingerprint in Google Cloud Console.\n\n'
             'You can continue with the browser flow or switch to Quick Demo Sign In.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8), height: 1.4),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
             ),
             TextButton(
               onPressed: () {
                 Navigator.of(ctx).pop(false);
                 _handleDemoLogin();
               },
-              child: const Text('Use Quick Demo'),
+              child: const Text('Use Quick Demo', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(ctx).pop(true),
@@ -134,9 +149,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (proceed != true) return;
     }
 
-    setState(() {
-      _isLoading = true;
-          });
+    setState(() => _isLoading = true);
 
     try {
       final AuthorizationTokenResponse result = await _appAuth.authorizeAndExchangeCode(
@@ -168,25 +181,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('OAuth Error: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(child: Text('OAuth Error: $e')),
+              ],
+            ),
             backgroundColor: AppTheme.unsafe,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-                  });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   /// Instant Demo Sign-In for offline/evaluator use
   Future<void> _handleDemoLogin() async {
-    setState(() {
-      _isLoading = true;
-          });
+    setState(() => _isLoading = true);
 
     try {
       final dio = ref.read(apiClientProvider);
@@ -206,122 +221,162 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Demo Login failed: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Demo Login failed: $e')),
+              ],
+            ),
             backgroundColor: AppTheme.unsafe,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-                  });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  Icons.directions_bike_rounded,
-                  size: 68,
-                  color: AppTheme.primary,
+                // Branding Header
+                Center(
+                  child: Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppTheme.surfaceContainer,
+                      border: Border.all(
+                        color: AppTheme.primary.withValues(alpha: 0.3),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withValues(alpha: 0.15),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.directions_bike_rounded,
+                      size: 42,
+                      color: AppTheme.primary,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
                 const Text(
-                  'Safe Bike Ride Planner',
+                  'Welcome Back',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: -0.3,
                     color: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Real-time weather & air quality assessments for safer cycling.',
+                  'Sign in to access your routes & safety assessments',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF8892B0),
+                    color: Color(0xFF94A3B8),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 28),
 
-                // Manual Login Form
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Email Field
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        autocorrect: false,
-                        decoration: const InputDecoration(
-                          labelText: 'Email Address',
-                          prefixIcon: Icon(Icons.email_outlined),
-                          hintText: 'cyclist@example.com',
-                        ),
-                        validator: (val) {
-                          if (val == null || val.trim().isEmpty) {
-                            return 'Please enter your email';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Password Field
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded),
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                // Form Card Container
+                Container(
+                  padding: const EdgeInsets.all(22.0),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFF1E293B)),
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Email Input
+                        TextFormField(
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          autocorrect: false,
+                          decoration: const InputDecoration(
+                            labelText: 'Email Address',
+                            prefixIcon: Icon(Icons.email_outlined),
+                            hintText: 'cyclist@example.com',
                           ),
-                          hintText: 'Enter your password',
+                          validator: (val) {
+                            if (val == null || val.trim().isEmpty) {
+                              return 'Please enter your email';
+                            }
+                            return null;
+                          },
                         ),
-                        validator: (val) {
-                          if (val == null || val.isEmpty) {
-                            return 'Please enter your password';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 16),
 
-                      // Sign In Button
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : _handleManualLogin,
-                        child: _isLoading
-                            ? SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.black87,
-                                ),
-                              )
-                            : const Text('Sign In', style: TextStyle(fontSize: 16)),
-                      ),
-                    ],
+                        // Password Input
+                        TextFormField(
+                          controller: _passwordController,
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(Icons.lock_outline_rounded),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                              ),
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                            ),
+                            hintText: 'Enter your password',
+                          ),
+                          validator: (val) {
+                            if (val == null || val.isEmpty) {
+                              return 'Please enter your password';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 22),
+
+                        // Sign In Action Button
+                        ElevatedButton(
+                          onPressed: _isLoading ? null : _handleManualLogin,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.2,
+                                    color: Colors.black87,
+                                  ),
+                                )
+                              : const Text('Sign In with Email'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
                 // Register Link
                 Row(
@@ -329,15 +384,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     const Text(
                       "Don't have an account? ",
-                      style: TextStyle(color: Color(0xFF8892B0)),
+                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                     ),
                     GestureDetector(
                       onTap: () => context.push('/register'),
                       child: const Text(
-                        'Register',
+                        'Register Now',
                         style: TextStyle(
                           color: AppTheme.primary,
                           fontWeight: FontWeight.bold,
+                          fontSize: 13,
                         ),
                       ),
                     ),
@@ -349,20 +405,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Divider
                 Row(
                   children: [
-                    const Expanded(child: Divider(color: Color(0xFF2D3748))),
+                    const Expanded(child: Divider(color: Color(0xFF1E293B))),
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 14.0),
                       child: Text(
-                        'OR CONTINUE WITH',
+                        'OR CONNECT WITH',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: const Color(0xFF64748B),
-                          letterSpacing: 1.1,
+                          letterSpacing: 0.8,
                         ),
                       ),
                     ),
-                    const Expanded(child: Divider(color: Color(0xFF2D3748))),
+                    const Expanded(child: Divider(color: Color(0xFF1E293B))),
                   ],
                 ),
 
@@ -371,15 +427,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // Google OAuth PKCE Button
                 OutlinedButton.icon(
                   onPressed: _isLoading ? null : _handleGoogleOAuthPKCE,
-                  icon: const Icon(Icons.security_rounded, size: 20),
+                  icon: const Icon(Icons.shield_outlined, size: 20, color: Color(0xFF38BDF8)),
                   label: const Text('Google Account (OAuth 2.0 PKCE)'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    side: const BorderSide(color: Color(0xFF2D3748)),
-                  ),
                 ),
 
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
                 // Quick Demo Sign-In
                 OutlinedButton.icon(
@@ -390,16 +442,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     style: TextStyle(color: AppTheme.primary),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppTheme.primary),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    side: BorderSide(color: AppTheme.primary.withValues(alpha: 0.6)),
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 22),
                 const Text(
-                  'Supports standard OAuth 2.0 PKCE, email registration, and demo mode.',
+                  'End-to-End Mobile Integration • RFC 8252 PKCE • Single API Gateway',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  style: TextStyle(fontSize: 10, color: Color(0xFF475569)),
                 ),
               ],
             ),
