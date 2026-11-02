@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<!--
+  =============================================================================
+  Safe Bike Ride Planner — Single-Page Application
+  K K K Ekanayake — Senior Web Developer
+  =============================================================================
+  A modern, dark-themed, responsive web UI for cyclists to check
+  real-time weather and air quality conditions before riding.
+  =============================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Safe Bike Ride Planner — real-time weather and air quality checks for cyclists. Know before you go." />
+  <meta name="theme-color" content="#0a0e1a" />
+
+  <title>Safe Bike Ride Planner</title>
+
+  <!-- FIX-18: PWA manifest + Apple PWA meta tags -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="BikeCheck" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- FIX-20: Accessibility — skip-to-content link for keyboard/screen-reader users -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- =====================================================================
+       SPLASH SCREEN
+  ====================================================================== -->
+  <div id="splash-screen">
+    <!-- Animated bicycle icon -->
+    <div class="splash-bike">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="18" cy="46" r="10" stroke="currentColor" stroke-width="3" fill="none"/>
+        <circle cx="18" cy="46" r="4" fill="currentColor"/>
+        <circle cx="46" cy="46" r="10" stroke="currentColor" stroke-width="3" fill="none"/>
+        <circle cx="46" cy="46" r="4" fill="currentColor"/>
+        <path d="M28 46h8" stroke="currentColor" stroke-width="2.5"/>
+        <path d="M18 46L26 20h12l8 26" stroke="currentColor" stroke-width="2.5" fill="none"/>
+        <path d="M30 20l-6 14h16" stroke="currentColor" stroke-width="2" fill="none"/>
+        <path d="M40 34l6 2" stroke="currentColor" stroke-width="2" fill="none"/>
+        <path d="M26 20h12" stroke="currentColor" stroke-width="2.5"/>
+        <circle cx="38" cy="20" r="2.5" fill="currentColor"/>
+        <path d="M34 10l-2 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M34 10l-6-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <path d="M36 8l-2 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+
+    <div class="splash-title">
+      Safe <span class="accent">Bike Ride</span> Planner
+    </div>
+
+    <div class="splash-tagline">
+      Know Before You Go 🚴
+    </div>
+
+    <div class="splash-loader">
+      <div class="splash-loader-bar"></div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MAIN APPLICATION
+  ====================================================================== -->
+  <div id="app">
+
+    <!-- ================================ HEADER ================================ -->
+    <header>
+      <div class="header-inner">
+        <div class="header-left">
+          <div class="header-logo">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="18" cy="46" r="10" stroke="currentColor" stroke-width="3" fill="none"/>
+              <circle cx="18" cy="46" r="4" fill="currentColor"/>
+              <circle cx="46" cy="46" r="10" stroke="currentColor" stroke-width="3" fill="none"/>
+              <circle cx="46" cy="46" r="4" fill="currentColor"/>
+              <path d="M28 46h8" stroke="currentColor" stroke-width="2.5"/>
+              <path d="M18 46L26 20h12l8 26" stroke="currentColor" stroke-width="2.5" fill="none"/>
+              <path d="M30 20l-6 14h16" stroke="currentColor" stroke-width="2" fill="none"/>
+              <path d="M40 34l6 2" stroke="currentColor" stroke-width="2" fill="none"/>
+              <path d="M26 20h12" stroke="currentColor" stroke-width="2.5"/>
+              <circle cx="38" cy="20" r="2.5" fill="currentColor"/>
+            </svg>
+          </div>
+          <span class="header-title">Safe <span class="accent">Bike Ride</span> Planner</span>
+        </div>
+
+        <div class="header-right" id="auth-container">
+          <!-- Auth state rendered by auth.js -->
+        </div>
+      </div>
+    </header>
+
+    <!-- ================================ MAIN CONTENT ================================ -->
+    <!-- FIX-20: id="main-content" for skip link target -->
+    <main id="main-content">
+      <!-- ---- HERO SECTION ---- -->
+      <section class="section hero">
+        <div class="hero-bg-icon">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="18" cy="46" r="10" stroke="currentColor" stroke-width="3" fill="none"/>
+            <circle cx="18" cy="46" r="4" fill="currentColor"/>
+            <circle cx="46" cy="46" r="10" stroke="currentColor" stroke-width="3" fill="none"/>
+            <circle cx="46" cy="46" r="4" fill="currentColor"/>
+            <path d="M28 46h8" stroke="currentColor" stroke-width="2.5"/>
+            <path d="M18 46L26 20h12l8 26" stroke="currentColor" stroke-width="2.5" fill="none"/>
+            <path d="M30 20l-6 14h16" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M26 20h12" stroke="currentColor" stroke-width="2.5"/>
+            <circle cx="38" cy="20" r="2.5" fill="currentColor"/>
+          </svg>
+        </div>
+
+        <h1>Is It <span class="accent">Safe</span> to Ride Today?</h1>
+        <p>
+          Real-time weather and air quality data tailored for cyclists.
+          Check conditions before you head out and ride with confidence.
+        </p>
+
+        <!-- Search / Location -->
+        <div class="search-section">
+          <div class="search-row">
+            <button class="btn btn-primary" onclick="detectLocation()">
+              <span class="btn-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/>
+                </svg>
+              </span>
+              Detect My Location
+            </button>
+
+            <div class="search-input-wrapper">
+              <span class="input-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+              </span>
+              <input
+                type="text"
+                id="city-search"
+                class="search-input"
+                placeholder="Enter a city name..."
+                autocomplete="off"
+              />
+            </div>
+
+            <button class="btn btn-primary" onclick="handleCityCheck()">
+              <span class="btn-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
+              </span>
+              Check
+            </button>
+          </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div class="loading-container" id="loading-container">
+          <div class="spinner"></div>
+          <span class="loading-text" id="loading-text">Loading...</span>
+        </div>
+
+        <!-- Error Message -->
+        <div class="error-message" id="error-message"></div>
+      </section>
+
+      <!-- ---- SAFETY REPORT SECTION ---- -->
+      <!-- FIX-20: aria-live="polite" so screen readers announce new report results -->
+      <section class="section report-section" id="report-section" aria-live="polite" aria-atomic="false">
+        <div class="report-card">
+
+          <!-- Report Header: City + Temp -->
+          <div class="report-header">
+            <div class="report-city">
+              <span class="report-city-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/>
+                </svg>
+              </span>
+              <span class="report-city-name" id="report-city-name">--</span>
+            </div>
+            <div class="report-temp">
+              <span class="report-temp-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M15 13V5a3 3 0 00-6 0v8a5 5 0 106 0zm-3-9a1 1 0 011 1v7h-2V5a1 1 0 011-1z"/>
+                </svg>
+              </span>
+              <span id="report-temp-value">--</span>
+            </div>
+          </div>
+
+          <!-- Score Gauge -->
+          <div class="score-gauge-wrapper">
+            <div class="score-gauge-container">
+              <svg class="score-gauge-svg" viewBox="0 0 200 200">
+                <defs>
+                  <linearGradient id="gauge-gradient-safe" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#00d4aa" />
+                    <stop offset="100%" stop-color="#00aaff" />
+                  </linearGradient>
+                  <linearGradient id="gauge-gradient-caution" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ffb347" />
+                    <stop offset="100%" stop-color="#ff8c00" />
+                  </linearGradient>
+                  <linearGradient id="gauge-gradient-unsafe" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ff4757" />
+                    <stop offset="100%" stop-color="#ff6b81" />
+                  </linearGradient>
+                </defs>
+                <!-- Background circle -->
+                <circle
+                  class="score-gauge-bg"
+                  cx="100"
+                  cy="100"
+                  r="78"
+                />
+                <!-- Fill circle (animated via JS) -->
+                <circle
+                  class="score-gauge-fill"
+                  id="gauge-fill"
+                  cx="100"
+                  cy="100"
+                  r="78"
+                  stroke="url(#gauge-gradient-safe)"
+                />
+              </svg>
+              <div class="score-gauge-center">
+                <span class="score-number" id="score-number">0</span>
+                <span class="score-label score-safe" id="score-label">Safe to Ride</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Weather Details Cards -->
+          <div class="weather-cards">
+            <!-- Temperature -->
+            <div class="weather-card">
+              <div class="weather-card-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/>
+                </svg>
+              </div>
+              <div class="weather-card-label">Temperature</div>
+              <div class="weather-card-value" id="temp-value">--</div>
+              <div class="weather-card-sub" id="temp-sub">--</div>
+            </div>
+
+            <!-- Wind -->
+            <div class="weather-card">
+              <div class="weather-card-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M3 15v-2h3v2H3zm5 0v-2h5v2H8zm7 0v-2h4v2h-4zM3 11V9h6v2H3zm8 0V9h9v2h-9zM3 7V5h3v2H3zm5 0V5h8v2H8z"/>
+                </svg>
+              </div>
+              <div class="weather-card-label">Wind</div>
+              <div class="weather-card-value" id="wind-value">--</div>
+              <div class="weather-card-sub" id="wind-sub">--</div>
+            </div>
+
+            <!-- Air Quality -->
+            <div class="weather-card">
+              <div class="weather-card-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2C9.24 2 7 4.24 7 7c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-4.26c1.81-1.27 3-3.36 3-5.74 0-2.76-2.24-5-5-5zm0 8c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm-2 12v-2h4v2h-4z"/>
+                </svg>
+              </div>
+              <div class="weather-card-label">Air Quality</div>
+              <div class="weather-card-value" id="aqi-value">--</div>
+              <div class="weather-card-sub" id="aqi-sub">--</div>
+            </div>
+          </div>
+
+          <!-- Condition Breakdown -->
+          <div class="condition-breakdown">
+            <h3>Condition Breakdown</h3>
+            <div class="condition-bar">
+              <div class="condition-item">
+                <span class="condition-label" id="bar-weather-label">Weather</span>
+                <div class="condition-track">
+                  <div class="condition-fill good" id="bar-weather-fill" style="width:0%"></div>
+                </div>
+                <span class="condition-score" id="bar-weather-score">0</span>
+              </div>
+              <div class="condition-item">
+                <span class="condition-label" id="bar-aqi-label">Air Quality</span>
+                <div class="condition-track">
+                  <div class="condition-fill good" id="bar-aqi-fill" style="width:0%"></div>
+                </div>
+                <span class="condition-score" id="bar-aqi-score">0</span>
+              </div>
+              <div class="condition-item">
+                <span class="condition-label" id="bar-condition-label">Overall</span>
+                <div class="condition-track">
+                  <div class="condition-fill good" id="bar-condition-fill" style="width:0%"></div>
+                </div>
+                <span class="condition-score" id="bar-condition-score">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recommendation -->
+          <div class="recommendation-box">
+            <div class="recommendation-header">
+              <span class="recommendation-icon safe" id="recommendation-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm0 15l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>
+                </svg>
+              </span>
+              <span class="recommendation-title" id="recommendation-title">--</span>
+            </div>
+            <p class="recommendation-summary" id="recommendation-summary"></p>
+            <ul class="recommendation-tips" id="recommendation-tips"></ul>
+          </div>
+
+          <!-- Report Actions (Save / History) -->
+          <div class="report-actions auth-hidden" id="report-actions">
+            <button class="btn btn-primary" id="save-report-btn" onclick="saveReport()">
+              <span class="btn-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M17 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+                </svg>
+              </span>
+              Save This Report
+            </button>
+            <button class="btn btn-secondary" onclick="openHistoryModal()">
+              <span class="btn-icon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M13 3a9 9 0 00-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0013 21a9 9 0 000-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+                </svg>
+              </span>
+              View History
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ---- STATISTICS SECTION ---- -->
+      <section class="section stats-section" id="stats-section">
+        <div class="stats-card">
+          <h3>Your Ride Statistics</h3>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-number" id="stat-total">0</div>
+              <div class="stat-label">Total Rides Checked</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" id="stat-avg">0</div>
+              <div class="stat-label">Average Safety Score</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" style="font-size:1rem;color:var(--text-secondary)" id="stat-breakdown-label">
+                <span style="color:var(--success)">●</span> Safe
+                <span style="color:var(--warning);margin-left:8px">●</span> Caution
+                <span style="color:var(--danger);margin-left:8px">●</span> Unsafe
+              </div>
+              <div class="stat-label">Ride Distribution</div>
+            </div>
+          </div>
+          <div class="stats-breakdown">
+            <div class="stats-breakdown-bar safe" id="stat-bar-safe" style="width:0%"></div>
+            <div class="stats-breakdown-bar caution" id="stat-bar-caution" style="width:0%"></div>
+            <div class="stats-breakdown-bar unsafe" id="stat-bar-unsafe" style="width:0%"></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ================================ FOOTER ================================ -->
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-powered">
+          Powered by <a href="https://openweathermap.org" target="_blank" rel="noopener">OpenWeatherMap</a>
+        </div>
+        <div class="footer-disclaimer">
+          Always exercise personal judgment. This tool provides guidance, not guarantees.
+          Weather and air quality conditions can change rapidly.
+        </div>
+        <div class="footer-copyright">
+          &copy; <span id="footer-year"></span> Safe Bike Ride Planner. All rights reserved.
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- =====================================================================
+       HISTORY MODAL
+  ====================================================================== -->
+  <!-- FIX-20: role + aria-modal + aria-label for screen reader modal support -->
+  <div class="modal-overlay" id="history-modal" role="dialog" aria-modal="true" aria-label="Ride History">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Ride History <span id="history-count" style="color:var(--text-muted);font-weight:400;font-size:0.9rem">(0)</span></h3>
+        <button class="modal-close" onclick="closeHistoryModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-empty" id="history-empty">
+          <p>No saved ride checks yet.</p>
+          <p style="margin-top:8px;font-size:0.85rem">Check a location and save your report to see it here.</p>
+        </div>
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       SCRIPTS
+  ====================================================================== -->
+  <!-- FIX-21: defer — scripts load after HTML parsed, no render blocking -->
+  <script src="js/auth.js" defer></script>
+  <script src="js/app.js" defer></script>
+
+  <!-- Footer year -->
+  <script>
+    document.getElementById('footer-year').textContent = new Date().getFullYear();
+  </script>
+
+</body>
+</html>

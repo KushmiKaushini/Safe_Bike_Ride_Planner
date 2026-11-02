@@ -1,0 +1,69 @@
+# Safe Bike Ride Planner - CI/CD Workflow
+# K K K Ekanayake - DevOps Engineer
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Lint check
+        working-directory: ./backend
+        run: |
+          # Check for syntax errors in all JS files
+          find . -name "*.js" -not -path "./node_modules/*" -exec node --check {} \;
+
+      - name: Run diagnostic
+        working-directory: ./backend
+        env:
+          MONGODB_URI: mongodb://localhost:27017/test
+          SESSION_SECRET: test-secret
+          GOOGLE_CLIENT_ID: test-client-id.apps.googleusercontent.com
+          GOOGLE_CLIENT_SECRET: test-secret
+          OPENWEATHER_API_KEY: test-api-key
+          GEOLOCATION_API_KEY: test-geo-key
+          API_KEY: test-api-key
+        run: node diagnostic.js
+
+  # Security audit (runs on schedule)
+  security-audit:
+    runs-on: ubuntu-latest
+    if: github.repository == 'KushmiKaushini/Safe_Bike_Ride_Planner'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run npm audit
+        working-directory: ./backend
+        run: npm audit || true
+
+  # Production deployment (requires secrets)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to production
+        run: echo "Ready for deployment - configure your hosting platform"
