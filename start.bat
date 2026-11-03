@@ -74,7 +74,7 @@ echo ========================================
 echo Server is starting...
 echo ========================================
 echo.
-echo Access your app at: http://localhost:3000
+echo Access your app at: http://localhost:8080
 echo.
 echo Press Ctrl+C to stop the server
 echo.
