@@ -16,6 +16,7 @@ backend/.env.*
 *.jks
 *.pem
 *.p12
+client_secret*.json
 firebase-credentials.json
 GoogleService-Info.plist
 

@@ -1298,7 +1298,8 @@ footer {
     width: 100%;
   }
 
-  .header-right .btn-google span {
+  .header-right .btn-google { padding: 8px 12px; }
+  .header-right .btn-google span:not(.btn-icon) {
     display: none;
   }
 
